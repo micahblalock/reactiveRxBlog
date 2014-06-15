@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -20,36 +21,54 @@ import examples.domain.Movie;
 public class MovieServices {
 
 	ExecutorService executor = Executors.newFixedThreadPool(10);
+	Map<String, String> movieCache = new HashMap<String, String>();
 
 	public Observable<Movie> getMovies() {
 		return Observable.from(movies);
 	}
 
 	public Observable<String> getMovieDirector(Movie movie) {
-		
-        Observable.OnSubscribe<String> subscription = observer -> {
-        	executor.execute(() -> {
-	        	String director = (String)getMovieInfo(movie.getName()).get("Director");
-	        	if(director != null){
-	        		observer.onNext(director);
-	        	} else {
-	        		observer.onError(new Throwable("Movie not found: " + movie.getName()));
-	        	}
-	            observer.onCompleted();
-        	});
-        };
-        return Observable.create(subscription);
+
+		Observable.OnSubscribe<String> subscription = observer -> {
+			if (movieCache.containsKey(movie.getName())) {
+				observer.onNext(movieCache.get(movie.getName()));
+				System.out.println("pulled from cache");
+			} else {
+				executor.execute(() -> {
+					try {
+						String director = (String) getMovieInfo(movie.getName())
+								.get("Director");
+						if(director != null) {
+							movieCache.put(movie.getName(), director);
+							observer.onNext(director);
+						} else {
+							System.out.println("Unable to find director for " + movie.getName());
+							observer.onError(new RuntimeException("Unable to find director"));
+						}
+					} catch (Exception e) {
+						observer.onError(e);
+					}
+					observer.onCompleted();
+				});
+			}
+		};
+		return Observable.create(subscription);
 	}
-	
-//	private void getMoviesAsync(final Subscriber<? super String> subscriber, final String movieName) {
-//		executor.execute(new Runnable() {
-//			@Override
-//			public void run() {
-//				getMovieInfo(movieName);
-//			}
-//		});
-//	}
-	
+
+	// private void getMoviesAsync(final Subscriber<? super String> subscriber,
+	// final String movieName) {
+	// executor.execute(new Runnable() {
+	// @Override
+	// public void run() {
+	// getMovieInfo(movieName);
+	// }
+	// });
+	// }
+
+	public Observable<String> getAlternateMovieDirector(Movie movie) {
+		System.out.println("Moving to alternate movie lookup service");
+		return this.getMovieDirector(movie);
+	}
 	private Map<String, Object> getMovieInfo(String movieName) {
 		try {
 			String queryURL = "http://www.omdbapi.com/?t="
@@ -73,7 +92,7 @@ public class MovieServices {
 	private List<Movie> movies = Arrays.asList(new Movie("12 Years a Slave",
 			"2013", 178375486, 18000000, "United Kingdom"), new Movie("Argo",
 			"2012", 232325503, 44500000, "United States"), new Movie(
-			"The Artist", "2011", 133432856, 15000000, "France"),
+			"The HArtist", "2011", 133432856, 15000000, "France"),
 			new Movie("The King's Speech", "2010", 414211549, 15000000,
 					"United Kingdom"), new Movie("The Hurt Locker", "2009",
 					49230772, 15000000, "United States"), new Movie(

@@ -19,8 +19,9 @@ public class ReactiveServer {
 
 	public static void main(String[] args) {
         ApplicationContext ctx = SpringApplication.run(ReactiveServer.class, args);
-        List<String> stooges = Arrays.asList("Larry","Moe","Curly");
-        Observable.from(stooges).subscribe(new Action1<String>() {
+        List<String> stoogeList = Arrays.asList("Larry","Moe","Curly");
+        Observable<String> stooges = Observable.from(stoogeList);
+        stooges.subscribe(new Action1<String>() {
 
                 @Override
                 public void call(String s) {

@@ -15,6 +15,7 @@ import org.springframework.web.context.request.async.DeferredResult;
 import com.google.gson.Gson;
 
 import rx.Observable;
+import rx.functions.Func1;
 
 @RestController
 public class Movies {
@@ -28,11 +29,11 @@ public class Movies {
     @ResponseBody
     public DeferredResult<String> getMovies(@RequestParam(value="gross", required=false, defaultValue="0") String gross) {
 		final DeferredResult<String> deferredResult = new DeferredResult<>();
-    	Observable<List<Object>> movies = movieService.getMovies()
+    	Observable<List<Map<String,String>>> movies = movieService.getMovies()
     	  .filter(movie-> movie.getBoxOffice() > Long.parseLong(gross))
 		  .flatMap(movie -> {
 			  Observable<Map<String, String>> m = Observable.from(movie.getName()).map(movieName -> { return getMap("movieName", movieName);});
-			  Observable<Map<String, String>> d = movieService.getMovieDirector(movie).map(director -> {
+			  Observable<Map<String, String>> d = movieService.getMovieDirector(movie).onErrorResumeNext(movieService.getAlternateMovieDirector(movie)).map(director -> {
 				  return getMap("director", director); 
 			  });
 			  return Observable.zip(m, d, (movieInfo, directorInfo) -> {
